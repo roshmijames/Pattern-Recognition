@@ -1,0 +1,142 @@
+%**************************************************************************
+%                   GMM CLASSIFIER                                        %  
+%**************************************************************************
+
+clc;
+clear all;
+
+err=0;
+sum_conf=0;
+confusion_knn_percent_avg =0;
+Confusion_Error_avg=0;
+
+% Number of iterations
+iter=input('Enter the number of iterations : ');
+Test_num=input('Enter the percent of data you want to test :');
+
+% Load the datasets
+[x,y] = input_partision;
+
+% num_components =1/2/5/6 (change every run to train and test)
+num_components=1;
+disp('*');
+
+for k=1:iter
+    
+    % Split Input
+    [gmm_xtrain,gmm_xtest,gmm_ytrain,gmm_ytest] = train_test_partision(x,y,Test_num); 
+
+    % TRAINING 
+    % SPILT DATA ACCRD to their class
+    ytrain_class1=(gmm_ytrain==1);
+    ytrain_class2=(gmm_ytrain==2);
+    ytrain_class3=(gmm_ytrain==3);
+
+    r=0;j=0;k=0;
+    
+    for i=1:1:size(gmm_ytrain,1)
+        
+        if ytrain_class1(i) == 1
+            r=r+1;
+            ydata_class1(r,:) = gmm_xtrain(i,:) ;
+        end;
+        if ytrain_class2(i) == 1
+            j=j+1;
+            ydata_class2(j,:) = gmm_xtrain(i,:) ;
+        end;
+        if ytrain_class3(i) == 1
+            k=k+1;
+            ydata_class3(k,:) = gmm_xtrain(i,:) ;
+        end;
+    end;
+
+    % To find the gaussian mean and variance
+    gmm_class1 = fitgmdist(ydata_class1,num_components);
+    gmm_class2 = fitgmdist(ydata_class2,num_components);
+    gmm_class3 = fitgmdist(ydata_class3,num_components);
+
+
+    % To create the density function
+    gmm_pdf_class1=zeros(size(gmm_xtest,1),1);
+    gmm_pdf_class2=zeros(size(gmm_xtest,1),1);
+    gmm_pdf_class3=zeros(size(gmm_xtest,1),1);
+    
+    for i=1:1:num_components 
+        gmm_pdf_class1 = gmm_pdf_class1 + gmm_class1.PComponents(i).*mvnpdf(gmm_xtest,gmm_class1.mu(i,:),gmm_class1.Sigma(:,:,i));
+        gmm_pdf_class2 = gmm_pdf_class2 + gmm_class2.PComponents(i).*mvnpdf(gmm_xtest,gmm_class2.mu(i,:),gmm_class2.Sigma(:,:,i));
+        gmm_pdf_class3 = gmm_pdf_class3 + gmm_class3.PComponents(i).*mvnpdf(gmm_xtest,gmm_class3.mu(i,:),gmm_class3.Sigma(:,:,i));
+    end
+
+    % To calculate Prior Probabilities
+    gmm_classcount = histc(gmm_ytest,unique(gmm_ytest));
+    gmm_classcountsum = sum(gmm_classcount);
+    prior_prob = gmm_classcount./gmm_classcountsum;
+
+    % Compare and predict the class
+    for c=1:1:size(gmm_xtest,1)
+        if gmm_pdf_class1(c)>gmm_pdf_class2(c) & gmm_pdf_class1(c)>gmm_pdf_class3(c)
+                gmm_class_predicted(c,1)=1;
+        elseif gmm_pdf_class2(c)>gmm_pdf_class1(c) & gmm_pdf_class2(c)>gmm_pdf_class3(c)
+                gmm_class_predicted(c,1)=2;
+        else
+                gmm_class_predicted(c,1)=3;
+        end;
+    end;
+
+    % To calculate Prior Probabilities
+    gmm_classcount = histc(gmm_ytest,unique(gmm_ytest));
+    gmm_classcountsum = sum(gmm_classcount);
+    prior_prob = gmm_classcount./gmm_classcountsum;
+
+    % Confusion matrix of teste samples
+    [confusion_gmm,gmmconfusion_order] = confusionmat(gmm_ytest,gmm_class_predicted);
+    gmm_classcount_con = gmm_classcount;
+    
+    for a=1:1:size(gmm_classcount,1)-1
+        gmm_classcount_con = cat(2,gmm_classcount_con,gmm_classcount);
+    end
+    
+    confusion_gmm_percent = confusion_gmm./gmm_classcount_con;
+    sum_conf=sum_conf+confusion_gmm_percent;
+
+
+    % Error of tested samples
+    gmmconfusion_Error = sum(confusion_gmm_percent(:))-sum(diag(confusion_gmm_percent));
+    err=err+gmmconfusion_Error;
+
+end
+
+% To find the average of all iterations of confusion matrices and error
+disp('****************************AVERAGE OF CONFUSION MATRIX AND ERROR****************************');
+confusion_gmm_percent_avg =sum_conf/iter
+Confusion_Error_avg=err/iter
+
+
+
+% To time for a single input 
+    d=input('Enter the nth row which you want to classify : ');
+    k=gmm_xtest(d,:);
+    tic
+         %To create the density function
+         gmm_pdf_class1=zeros(size(k,1),1);
+         gmm_pdf_class2=zeros(size(k,1),1);
+         gmm_pdf_class3=zeros(size(k,1),1);
+     
+         for i=1:1:num_components 
+            gmm_pdf_class1 = gmm_pdf_class1 + gmm_class1.PComponents(i).*mvnpdf(k,gmm_class1.mu(i,:),gmm_class1.Sigma(:,:,i));
+            gmm_pdf_class2 = gmm_pdf_class2 + gmm_class2.PComponents(i).*mvnpdf(k,gmm_class2.mu(i,:),gmm_class2.Sigma(:,:,i));
+            gmm_pdf_class3 = gmm_pdf_class3 + gmm_class3.PComponents(i).*mvnpdf(k,gmm_class3.mu(i,:),gmm_class3.Sigma(:,:,i));
+         end;
+
+        %Compare and predict the class
+            if gmm_pdf_class1>gmm_pdf_class2 & gmm_pdf_class1>gmm_pdf_class3
+                    gmm_class_predicted=1;
+            elseif gmm_pdf_class2>gmm_pdf_class1 & gmm_pdf_class2>gmm_pdf_class3
+                    gmm_class_predicted=2;
+            else
+                    gmm_class_predicted=3;
+            end;
+        
+        % To print the predicted class label
+        gmm_class_predicted
+timer=toc
