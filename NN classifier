@@ -1,0 +1,134 @@
+%**************************************************************************
+%                   NN CLASSIFIER                                        %  
+%**************************************************************************
+
+clc;
+clear all;
+
+sum_conf=0;
+confusion_knn_percent_avg =0;
+Confusion_Error_avg=0;
+
+% Number of iterations
+iter=input('Enter the number of iterations : ');
+Test_num=input('Enter the percent of data you want to test :');
+err=0;
+
+% Load the datasets
+[x,y] = input_partision; 
+
+% To train and predict for different hidden layers
+for q=1:7
+    hiddensizes=9:1:15;
+    sum_conf=0;
+    disp('*')
+
+    for k=1:iter
+
+        %Split Input
+        [nn_xtrain,nn_xtest,nn_ytrain,nn_ytest] = train_test_partision(x,y,Test_num); 
+
+        nn_ytrain_new=[];
+        for i = 1:size(nn_ytrain)
+            if (nn_ytrain(i) == 1)
+                nn_ytrain_new=[nn_ytrain_new;0 0 1];
+            elseif (nn_ytrain(i) == 2)
+                nn_ytrain_new=[nn_ytrain_new;0 1 0];
+            else
+                nn_ytrain_new=[nn_ytrain_new;1 0 0] ;
+            end
+        end
+
+        nn_ytest_new=[];
+        for i = 1:size(nn_ytest)
+            if (nn_ytest(i) == 1)
+                nn_ytest_new=[nn_ytest_new;0 0 1];
+            elseif (nn_ytest(i) == 2)
+                nn_ytest_new=[nn_ytest_new;0 1 0];
+            else
+                nn_ytest_new=[nn_ytest_new;1 0 0] ;
+            end
+        end
+
+        nn_xtest=nn_xtest';
+        nn_xtrain=nn_xtrain';
+        nn_net1 =patternnet(hiddensizes);
+
+        % Train
+        nn_net_class1=train(nn_net1,nn_xtrain,nn_ytrain_new');
+
+        % To alter the transunction as trainlm - Levenberg-Marquardt backpropagation.
+        % nn_net_class1.trainFcn='trainlm';
+
+        % To predict the test samples
+        nn_class1=nn_net_class1(nn_xtest);
+        nn_class1=round(nn_class1');
+        nn_predict=[];
+        
+        for i=1:size(nn_class1)
+
+            if (nn_class1(i,:) == [0 0 1])
+                nn_predict=[nn_predict;1];
+            elseif (nn_class1(i,:) == [0 1 0])
+                nn_predict=[nn_predict;2];
+            else
+                nn_predict=[nn_predict;3] ;
+            end 
+
+        end
+
+        % To calculate Prior Probabilities
+        nn_classcount = histc(nn_ytest,unique(nn_ytest));
+        nn_classcountsum = sum(nn_classcount);
+        prior_prob = nn_classcount./nn_classcountsum;
+
+        % Confusion matrix of predicted samples
+        [confusion_nn,nnconfusion_order] = confusionmat(nn_ytest,nn_predict);
+        nn_classcount_con = nn_classcount;
+        
+        for a=1:1:size(nn_classcount,1)-1
+            nn_classcount_con = cat(2,nn_classcount_con,nn_classcount);
+        end    
+            confusion_nn_percent = confusion_nn./nn_classcount_con;
+            sum_conf=sum_conf+confusion_nn_percent;
+
+
+    % Error of tested samples
+    nnconfusion_Error = sum(confusion_nn_percent(:))-sum(diag(confusion_nn_percent));
+    err=err+nnconfusion_Error;
+
+    end
+
+%To find the average of all iterations confusion matrices and error
+confusion_nn_percent_avg =sum_conf/iter;
+Confusion_Error_avg=err/iter;
+CF{q}=confusion_nn_percent_avg;
+error(q)=Confusion_Error_avg;
+
+end
+
+% Displays the confusion matrix and error of all hidden layer size
+disp('****************************AVERAGE OF CONFUSION MATRIX AND ERROR****************************');
+CF
+error
+
+
+% To check single input and time
+    c=input('Enter the nth row which you want to classify : ');
+    tic
+        nn_class1=nn_net_class1(nn_xtest(:,c));
+        nn_class1=round(nn_class1');
+        nn_predict=[];
+        for i=1:size(nn_class1)
+            if (nn_class1 == [0 0 1])
+                nn_predict=[nn_predict;1];
+            elseif (nn_class1 == [0 1 0])
+                nn_predict=[nn_predict;2];
+            else
+                nn_predict=[nn_predict;3] ;
+            end 
+        end
+
+        % To display the predicted the class label
+        nn_predict
+    timer=toc
