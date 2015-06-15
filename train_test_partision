@@ -1,0 +1,18 @@
+%PARTISION OF FEATURES AND LABELS AS TRAINING AND TEST SAMPLES
+
+function[xtrain,xtest,ytrain,ytest] = train_test_partision(x,y,Test_num)
+
+% Train & Test partision.
+rng('shuffle');
+test_percent=Test_num/100;
+crossvalidation = cvpartition(length(x),'holdout',test_percent);
+
+% Training set
+xtrain = x(training(crossvalidation),:);
+ytrain = y(training(crossvalidation),:);
+
+% Test set
+xtest = x(test(crossvalidation),:);
+ytest = y(test(crossvalidation),:);
+
+end
