@@ -1,0 +1,127 @@
+%**************************************************************************
+%                   SVM CLASSIFIER                                        %  
+%**************************************************************************
+
+clc;
+clear all;
+err=0;
+confusion_svm_percent_avg =0;
+Confusion_Error_avg=0;
+sum_conf=0;
+
+% Load the datasets
+[x,y] = input_partision; 
+
+% Number of iterations
+iter=input('Enter the number of iterations : ');
+Test_num=input('Enter the percent of data you want to test :');
+
+% To repeat for the number of iterations and take the average value
+for k=1:iter
+    
+        % Split Input
+        [svm_xtrain,svm_xtest,svm_ytrain,svm_ytest] = train_test_partision(x,y,Test_num); 
+
+        ytrain_class1=(svm_ytrain==1);
+        ytrain_class2=(svm_ytrain==2);
+        ytrain_class3=(svm_ytrain==3);
+
+
+        % USE below for euclidean
+        % SVM_classifier1=fitcsvm(svm_xtrain,ytrain_class1,'Standardize',true,'KernelFunction','rbf','BoxConstraint',1);
+        % SVM_classifier2=fitcsvm(svm_xtrain,ytrain_class2,'Standardize',true,'KernelFunction','rbf','BoxConstraint',1);
+        % SVM_classifier3=fitcsvm(svm_xtrain,ytrain_class3,'Standardize',true,'KernelFunction','rbf','BoxConstraint',1);
+
+        % USE below for cityblock
+        SVM_classifier1=fitcsvm(svm_xtrain,ytrain_class1,'Standardize',true,'KernelFunction','polynomial','BoxConstraint',1);
+        SVM_classifier2=fitcsvm(svm_xtrain,ytrain_class2,'Standardize',true,'KernelFunction','polynomial','BoxConstraint',1);
+        SVM_classifier3=fitcsvm(svm_xtrain,ytrain_class3,'Standardize',true,'KernelFunction','polynomial','BoxConstraint',1);
+
+
+        [SVM_prediction1,SVM_score1]=predict(SVM_classifier1,svm_xtest);
+        [SVM_prediction2,SVM_score2]=predict(SVM_classifier2,svm_xtest);
+        [SVM_prediction3,SVM_score3]=predict(SVM_classifier3,svm_xtest);
+
+        % Consolidate the Prediction
+            for i=1:1:size(svm_ytest,1) 
+                % [100]
+                if SVM_prediction1(i)==1 & SVM_prediction2(i)==0 & SVM_prediction3(i)==0 
+                    SVM_prediction(i,1) = 1;
+                %[010]
+                elseif SVM_prediction1(i)==0 & SVM_prediction2(i)==1 & SVM_prediction3(i)==0
+                    SVM_prediction(i,1) = 2;
+                %[001]
+                elseif SVM_prediction1(i)==0 & SVM_prediction2(i)==0 & SVM_prediction3(i)==1 
+                    SVM_prediction(i,1) = 3;
+                %[111]
+                elseif SVM_prediction1(i)==1 & SVM_prediction2(i)==1 & SVM_prediction3(i)==1
+                    if SVM_score1(i)>SVM_score2(i) 
+                        if SVM_score1(i)>SVM_score3(i)
+                            SVM_prediction(i,1)= 1;
+                        else
+                            SVM_prediction(i,1) = 3;
+                        end
+                    else
+                        if SVM_score2(i)>SVM_score3(i)
+                            SVM_prediction(i,1) = 2;
+                        else    
+                            SVM_prediction(i,1) = 3;
+                        end     
+                    end
+                %[110]    
+                elseif SVM_prediction1(i)==1 & SVM_prediction2(i)==1 & SVM_prediction3(i)==0 
+                    if SVM_score1(i)>SVM_score2(i)
+                       SVM_prediction(i,1) = 1;
+                    else
+                        SVM_prediction(i,1) = 2;
+                    end
+                %[101]        
+                elseif SVM_prediction1(i)==1 & SVM_prediction2(i)==0 & SVM_prediction3(i)==1 
+                    if SVM_score1(i)>SVM_score3(i)
+                        SVM_prediction(i,1) = 1;
+                    else
+                        SVM_prediction(i,1) = 3;
+                    end
+                %[011]    
+                elseif SVM_prediction1(i)==0 & SVM_prediction2(i)==1 & SVM_prediction3(i)==1 
+                    if SVM_score2(i)>SVM_score3(i)
+                        SVM_prediction(i,1) = 2;
+                    else
+                       SVM_prediction(i,1) = 3;
+                    end
+                %[000]    
+                elseif SVM_prediction1(i)==0 & SVM_prediction2(i)==0 & SVM_prediction3(i)==0 
+                        if SVM_score1(i)>SVM_score2(i) & SVM_score1(i)>SVM_score3(i)
+                            SVM_prediction(i,1)=1;
+                        elseif SVM_score2(i)>SVM_score1(i) & SVM_score2(i)>SVM_score3(i)
+                            SVM_prediction(i,1)=2;   
+                         else
+                            SVM_prediction(i,1)=3;  
+                        end;
+                end;
+            end
+            
+        % To calculate Prior Probabilities
+        svm_classcount = histc(svm_ytest,unique(svm_ytest));
+        svm_classcountsum = sum(svm_classcount);
+        prior_prob = svm_classcount./svm_classcountsum;
+
+        % Confusion matrix of tested samples
+        [confusion_svm,svmconfusion_order] = confusionmat(svm_ytest,SVM_prediction);
+        svm_classcount_con = svm_classcount;
+            for a=1:1:size(svm_classcount,1)-1
+                svm_classcount_con = cat(2,svm_classcount_con,svm_classcount);
+            end    
+        confusion_svm_percent = confusion_svm./svm_classcount_con;
+        sum_conf=sum_conf+confusion_svm_percent;
+
+        % Error of tested samples
+        svmconfusion_Error = sum(confusion_svm_percent(:))-sum(diag(confusion_svm_percent));
+        err=err+svmconfusion_Error;
+        
+end;
+ 
+% To find the average of all iterations of confusion matrices and error
+confusion_svm_percent_avg =sum_conf/iter
+Confusion_Error_avg=err/iter
+
