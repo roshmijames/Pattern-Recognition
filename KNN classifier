@@ -1,0 +1,87 @@
+%**************************************************************************
+%                   KNN CLASSIFIER                                        %  
+%**************************************************************************
+clc;
+clear all;
+
+err=0;
+confusion_knn_percent_avg =0;
+Confusion_Error_avg=0;
+sum_conf=0;
+
+% Load the datasets
+[x,y] = input_partision; 
+
+% Number of iterations
+iter=input('Enter the number of iterations : ');
+Test_num=input('Enter the percent of data you want to test :');
+
+% To train and test for different neighbours (q -> nearest neighbours)
+for q=1:10
+    sum_conf=0;
+    disp('*');
+    
+    % To repeat for the number of iterations and take the average value
+    for k=1:iter
+
+        % Split Input
+        [knn_xtrain,knn_xtest,knn_ytrain,knn_ytest] = train_test_partision(x,y,Test_num); 
+
+        % Train the classifier for training data using EUCLIDEAN DISTANCE
+        %knnclassifier = fitcknn(knn_xtrain,knn_ytrain,'NumNeighbors',q,'Distance', 'euclidean');  
+
+        % Train the classifier for training data using CITYBLOCK DISTANCE
+        knnclassifier = fitcknn(knn_xtrain,knn_ytrain,'NumNeighbors',q,'Distance', 'cityblock');  
+
+
+        % Make prediction for test samples
+        knn_prediction=predict(knnclassifier,knn_xtest);
+
+        % For resubstitutional loss
+        closs = resubLoss(knnclassifier);
+        cvcknnclassifier = crossval(knnclassifier);
+        kcloss = kfoldLoss(cvcknnclassifier);
+
+        % To calculate Prior Probabilities of samples
+        knn_classcount = histc(knn_ytest,unique(knn_ytest));
+        knn_classcountsum = sum(knn_classcount);
+        prior_prob = knn_classcount./knn_classcountsum;
+
+        % Confusion matrix of testing samples
+        [confusion_knn,confusion_order] = confusionmat(knn_ytest,knn_prediction);
+        knn_classcount_con = knn_classcount;
+        
+            for a=1:1:size(knn_classcount,1)-1
+                knn_classcount_con = cat(2,knn_classcount_con,knn_classcount);
+            end
+            
+        confusion_knn_percent = confusion_knn./knn_classcount_con;
+        sum_conf=sum_conf+confusion_knn_percent;
+
+        % Error from Confusion matrix
+        Confusion_Error = sum(confusion_knn_percent(:))-sum(diag(confusion_knn_percent));
+        err=err+Confusion_Error;
+        
+    end
+
+% To find the average of all iterations confusion matrices and error
+confusion_knn_percent_avg =sum_conf/iter;
+Confusion_Error_avg=err/iter;
+CF{q}=confusion_knn_percent_avg;
+error(q)=Confusion_Error_avg;
+
+end
+
+% DISPLAY  the results
+% CF -> Contains the confusion matrix (different nearest neighbours trained)
+% error -> Average Error of all (different nearest neighbours trained) 
+disp('****************************AVERAGE OF CONFUSION MATRIX AND ERROR****************************');
+CF
+error
+
+% To test the time taken to predict for single sample
+     c=input('Enter the nth row which you want to classify : ');
+     tic
+     knn_prediction_c=predict(knnclassifier,knn_xtest(c,:));
+     knn_prediction_c
+     timer=toc
